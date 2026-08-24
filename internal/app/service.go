@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"crypto/subtle"
 	"errors"
@@ -512,6 +513,9 @@ func (s *Service) importExisting(state *model.State) (int, []string, error) {
 	if err != nil {
 		return 0, nil, err
 	}
+	if len(bytes.TrimSpace(listBytes)) == 0 {
+		return 0, nil, nil
+	}
 	entries, err := proxycore.ParseList(string(listBytes))
 	if err != nil {
 		return 0, nil, err
@@ -597,4 +601,3 @@ func FilteredList(state model.State, filter string) []model.Proxy {
 func TextList(proxies []model.Proxy) string {
 	return strings.TrimSpace(string(proxycore.FormatList(proxies, false)))
 }
-

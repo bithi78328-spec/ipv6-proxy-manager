@@ -261,3 +261,19 @@ func TestBootstrapImportsExistingManualSetup(t *testing.T) {
 	}
 }
 
+func TestBootstrapIgnoresAnEmptyExistingProxyList(t *testing.T) {
+	service, _ := testService(t)
+	emptyList := filepath.Join(filepath.Dir(service.Paths.Config), "empty-proxies.txt")
+	if err := os.WriteFile(emptyList, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	service.Paths.ImportList = emptyList
+	service.Paths.ImportConfigs = []string{filepath.Join(t.TempDir(), "missing.cfg")}
+	state, _, err := service.Bootstrap(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(state.Proxies) != 0 {
+		t.Fatalf("expected an empty state, got %d proxies", len(state.Proxies))
+	}
+}
