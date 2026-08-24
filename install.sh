@@ -47,10 +47,10 @@ step "Checking the VPS"
 [[ -r /etc/os-release ]] || { echo "Unsupported OS: /etc/os-release is missing"; exit 2; }
 # shellcheck disable=SC1091
 source /etc/os-release
-[[ ${ID:-} == ubuntu ]] || { echo "Unsupported OS: Ubuntu 22.04 or 24.04 is required"; exit 2; }
+[[ ${ID:-} == ubuntu ]] || { echo "Unsupported OS: Ubuntu 22.04, 24.04, or 26.04 is required"; exit 2; }
 case "${VERSION_ID:-}" in
-  22.04|24.04) ;;
-  *) echo "Unsupported Ubuntu ${VERSION_ID:-unknown}. Use Ubuntu 22.04 or 24.04."; exit 2 ;;
+  22.04|24.04|26.04) ;;
+  *) echo "Unsupported Ubuntu ${VERSION_ID:-unknown}. Use Ubuntu 22.04, 24.04, or 26.04."; exit 2 ;;
 esac
 case "$(dpkg --print-architecture)" in
   amd64) ARCH=amd64; THREEPROXY_ASSET="3proxy-${THREEPROXY_VERSION}.x86_64.deb"; THREEPROXY_SHA="5c8c2119c19cb26c7fb3c81a79f8a278f19d39a24189ad5c719479b3414f734a" ;;
