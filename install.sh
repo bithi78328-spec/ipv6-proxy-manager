@@ -129,6 +129,7 @@ After=network-online.target
 
 [Service]
 Type=simple
+ExecStartPre=/usr/sbin/sysctl -w net.netfilter.nf_conntrack_max=131072
 ExecStartPre=/usr/local/bin/proxy-manager prepare
 ExecStart=/usr/local/bin/proxy-manager engine
 Restart=always
