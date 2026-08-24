@@ -39,6 +39,9 @@ func (f *fakeRunner) Run(_ context.Context, name string, args ...string) ([]byte
 			return nil, err
 		}
 	}
+	if strings.Contains(call, "systemctl show") && strings.Contains(call, "MainPID") {
+		return []byte("123\n"), nil
+	}
 	return []byte("active"), nil
 }
 
