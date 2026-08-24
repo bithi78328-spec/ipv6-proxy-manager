@@ -320,11 +320,16 @@ func (s *Service) applyCandidate(ctx context.Context, original, candidate model.
 	report.Steps = append(report.Steps, fmt.Sprintf("Verified %d enabled IPv6 addresses", enabledCount(candidate.Proxies)))
 
 	oldConfig, oldConfigErr := os.ReadFile(s.Paths.Config)
+	stateChanged := false
 	rollback := func() {
+		if stateChanged {
+			_ = s.Store.Save(original)
+		}
 		if oldConfigErr == nil {
 			_ = store.WriteAtomic(s.Paths.Config, oldConfig, 0o600)
 			_ = s.Host.RestartEngine(ctx)
 		}
+		_ = s.writeLists(original)
 		for _, address := range added {
 			_ = s.Host.RemoveIPv6(ctx, candidate.Interface, address)
 		}
@@ -333,6 +338,14 @@ func (s *Service) applyCandidate(ctx context.Context, original, candidate model.
 		return report, fmt.Errorf("write 3proxy configuration: %w", err)
 	}
 	report.Steps = append(report.Steps, "Regenerated the 3proxy configuration")
+	// systemd runs proxy-manager prepare immediately before 3proxy. Persist the
+	// candidate first so ExecStartPre regenerates the same configuration instead
+	// of silently restoring the previous state during dashboard operations.
+	if err := s.Store.Save(candidate); err != nil {
+		rollback()
+		return report, err
+	}
+	stateChanged = true
 	if err := s.Host.RestartEngine(ctx); err != nil {
 		rollback()
 		return report, fmt.Errorf("3proxy failed to restart; previous configuration was restored: %w", err)
@@ -342,11 +355,8 @@ func (s *Service) applyCandidate(ctx context.Context, original, candidate model.
 		rollback()
 		return report, fmt.Errorf("proxy engine is not active after restart; previous configuration was restored: %w", err)
 	}
-	if err := s.Store.Save(candidate); err != nil {
-		rollback()
-		return report, err
-	}
 	if err := s.writeLists(candidate); err != nil {
+		rollback()
 		return report, err
 	}
 	report.Steps = append(report.Steps, "Regenerated the full proxy text files")
@@ -579,3 +589,4 @@ func FilteredList(state model.State, filter string) []model.Proxy {
 func TextList(proxies []model.Proxy) string {
 	return strings.TrimSpace(string(proxycore.FormatList(proxies, false)))
 }
+
