@@ -107,7 +107,9 @@ func TestTenThousandIdleListeners(t *testing.T) {
 	cancel()
 	select {
 	case err := <-errCh:
-		if err != nil { t.Fatal(err) }
+		if err != nil {
+			t.Fatal(err)
+		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("10,000-listener engine did not stop")
 	}

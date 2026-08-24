@@ -193,17 +193,25 @@ func readConnectRequest(conn net.Conn) (string, byte, error) {
 	switch header[3] {
 	case 0x01:
 		b := make([]byte, net.IPv4len)
-		if _, err := io.ReadFull(conn, b); err != nil { return "", 0x01, err }
+		if _, err := io.ReadFull(conn, b); err != nil {
+			return "", 0x01, err
+		}
 		host = net.IP(b).String()
 	case 0x03:
 		length := []byte{0}
-		if _, err := io.ReadFull(conn, length); err != nil { return "", 0x01, err }
+		if _, err := io.ReadFull(conn, length); err != nil {
+			return "", 0x01, err
+		}
 		b := make([]byte, int(length[0]))
-		if _, err := io.ReadFull(conn, b); err != nil { return "", 0x01, err }
+		if _, err := io.ReadFull(conn, b); err != nil {
+			return "", 0x01, err
+		}
 		host = string(b)
 	case 0x04:
 		b := make([]byte, net.IPv6len)
-		if _, err := io.ReadFull(conn, b); err != nil { return "", 0x01, err }
+		if _, err := io.ReadFull(conn, b); err != nil {
+			return "", 0x01, err
+		}
 		host = net.IP(b).String()
 	default:
 		return "", 0x08, fmt.Errorf("unsupported address type")
@@ -224,7 +232,9 @@ func relay(client, upstream net.Conn) {
 	done := make(chan struct{}, 2)
 	copyOne := func(dst, src net.Conn) {
 		_, _ = io.Copy(dst, src)
-		if tcp, ok := dst.(*net.TCPConn); ok { _ = tcp.CloseWrite() }
+		if tcp, ok := dst.(*net.TCPConn); ok {
+			_ = tcp.CloseWrite()
+		}
 		done <- struct{}{}
 	}
 	go copyOne(upstream, client)
@@ -234,5 +244,7 @@ func relay(client, upstream net.Conn) {
 }
 
 func closeListeners(listeners []listener) {
-	for _, item := range listeners { _ = item.Close() }
+	for _, item := range listeners {
+		_ = item.Close()
+	}
 }
