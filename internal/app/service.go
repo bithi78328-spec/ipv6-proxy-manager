@@ -352,8 +352,16 @@ func (s *Service) applyCandidate(ctx context.Context, original, candidate model.
 	}
 	report.Steps = append(report.Steps, "Restarted the proxy engine")
 	if err := s.Host.EngineActive(ctx); err != nil {
-		rollback()
-		return report, fmt.Errorf("proxy engine is not active after restart; previous configuration was restored: %w", err)
+		report.Steps = append(report.Steps, "The first engine process was unstable; retrying automatically")
+		if retryErr := s.Host.RestartEngine(ctx); retryErr != nil {
+			rollback()
+			return report, fmt.Errorf("proxy engine retry failed; previous configuration was restored: %w", retryErr)
+		}
+		if retryErr := s.Host.EngineActive(ctx); retryErr != nil {
+			rollback()
+			return report, fmt.Errorf("proxy engine remained unstable after automatic retry; previous configuration was restored: %w", retryErr)
+		}
+		report.Steps = append(report.Steps, "Automatic engine retry is stable")
 	}
 	if err := s.writeLists(candidate); err != nil {
 		rollback()
@@ -433,7 +441,7 @@ func (s *Service) CheckAll(ctx context.Context, concurrency int) error {
 			retryIndexes = append(retryIndexes, check.index)
 		}
 	}
-	if len(retryIndexes) > 0 && len(retryIndexes) <= 100 {
+	if len(retryIndexes) > 0 && len(retryIndexes) <= 1000 {
 		sort.Ints(retryIndexes)
 		for _, index := range retryIndexes {
 			check := result{index: index, err: s.Checker.Check(ctx, state.Proxies[index])}
