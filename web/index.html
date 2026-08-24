@@ -12,28 +12,28 @@
       <div>
         <p class="eyebrow">VPS CONTROL PANEL</p>
         <h1>IPv6 Proxy Manager</h1>
-        <p id="environment" class="muted">à¦²à§‹à¦¡ à¦¹à¦šà§à¦›à§‡â€¦</p>
+        <p id="environment" class="muted">লোড হচ্ছে…</p>
       </div>
-      <button id="refresh" class="secondary">à¦°à¦¿à¦«à§à¦°à§‡à¦¶</button>
+      <button id="refresh" class="secondary">রিফ্রেশ</button>
     </header>
 
     <section class="cards">
-      <article><span>à¦®à§‹à¦Ÿ Proxy</span><strong id="total">â€”</strong></article>
-      <article class="good"><span>Live</span><strong id="live">â€”</strong></article>
-      <article class="off"><span>Disabled</span><strong id="disabled">â€”</strong></article>
-      <article class="bad"><span>Failed</span><strong id="failed">â€”</strong></article>
-      <article class="checking"><span>Checking</span><strong id="checking">â€”</strong></article>
+      <article><span>মোট Proxy</span><strong id="total">—</strong></article>
+      <article class="good"><span>Live</span><strong id="live">—</strong></article>
+      <article class="off"><span>Disabled</span><strong id="disabled">—</strong></article>
+      <article class="bad"><span>Failed</span><strong id="failed">—</strong></article>
+      <article class="checking"><span>Checking</span><strong id="checking">—</strong></article>
     </section>
 
     <section class="actions">
-      <button id="check">à¦¸à¦¬ Proxy Check à¦•à¦°à§à¦¨</button>
+      <button id="check">সব Proxy Check করুন</button>
       <button id="repair" class="warning">One-click Repair All</button>
     </section>
 
     <section class="panel">
-      <h2>à¦¨à¦¤à§à¦¨ Proxy à¦¤à§ˆà¦°à¦¿ / à¦†à¦°à¦“ Proxy à¦¯à§‹à¦—</h2>
+      <h2>নতুন Proxy তৈরি / আরও Proxy যোগ</h2>
       <div class="form-grid">
-        <label>à¦•à¦¤à¦Ÿà¦¿ Proxy
+        <label>কতটি Proxy
           <input id="count" type="number" min="1" max="10000" value="500">
         </label>
         <label>Credential
@@ -49,7 +49,7 @@
           <input id="password" autocomplete="off">
         </label>
       </div>
-      <button id="create">Proxy à¦¤à§ˆà¦°à¦¿ à¦•à¦°à§à¦¨</button>
+      <button id="create">Proxy তৈরি করুন</button>
     </section>
 
     <section class="panel">
@@ -60,22 +60,22 @@
         </div>
         <div class="inline-actions">
           <select id="list-filter">
-            <option value="all">à¦¸à¦¬ Proxy</option>
-            <option value="live">à¦¶à§à¦§à§ Live</option>
-            <option value="disabled">à¦¶à§à¦§à§ Disabled</option>
-            <option value="failed">à¦¶à§à¦§à§ Failed</option>
+            <option value="all">সব Proxy</option>
+            <option value="live">শুধু Live</option>
+            <option value="disabled">শুধু Disabled</option>
+            <option value="failed">শুধু Failed</option>
           </select>
-          <button id="load-list" class="secondary">List à¦¦à§‡à¦–à§à¦¨</button>
+          <button id="load-list" class="secondary">List দেখুন</button>
           <button id="copy-list" class="secondary">Copy</button>
           <button id="download-list" class="secondary">TXT Download</button>
         </div>
       </div>
-      <textarea id="proxy-list" rows="12" readonly placeholder="List à¦¦à§‡à¦–à§à¦¨ à¦šà¦¾à¦ªà¦²à§‡ à¦à¦–à¦¾à¦¨à§‡ proxy list à¦†à¦¸à¦¬à§‡"></textarea>
+      <textarea id="proxy-list" rows="12" readonly placeholder="List দেখুন চাপলে এখানে proxy list আসবে"></textarea>
     </section>
 
     <section class="panel">
-      <h2>Proxy à¦¬à¦¨à§à¦§, à¦šà¦¾à¦²à§ à¦…à¦¥à¦¬à¦¾ Delete</h2>
-      <p class="muted">Full proxy lineà¦—à§à¦²à§‹ à¦¨à¦¿à¦šà§‡ paste à¦•à¦°à§à¦¨à¥¤</p>
+      <h2>Proxy বন্ধ, চালু অথবা Delete</h2>
+      <p class="muted">Full proxy lineগুলো নিচে paste করুন।</p>
       <textarea id="action-list" rows="7" placeholder="65.20.83.206:10000:user:password"></textarea>
       <div class="inline-actions">
         <select id="action">
@@ -88,7 +88,7 @@
     </section>
 
     <section class="panel output-panel">
-      <h2>à¦•à¦¾à¦œà§‡à¦° à¦«à¦²à¦¾à¦«à¦²</h2>
+      <h2>কাজের ফলাফল</h2>
       <pre id="output">Ready.</pre>
     </section>
   </main>
