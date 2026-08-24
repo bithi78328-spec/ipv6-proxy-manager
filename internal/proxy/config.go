@@ -88,9 +88,10 @@ func RenderConfig(proxies []model.Proxy) ([]byte, error) {
 	}
 	for _, p := range enabled {
 		fmt.Fprintf(&out, "allow %s\n", p.Username)
-		// 3proxy uses one thread per service. A small explicit service stack is
-		// required when a /64 is used for thousands of listeners on a 1 GB VPS.
-		fmt.Fprintf(&out, "socks -S65536 -6 -n -a -p%d -i%s -e%s\n", p.Port, p.Host, p.IPv6)
+		// 3proxy adds -S to its 48 KiB base stack. A negative adjustment reaches
+		// Linux PTHREAD_STACK_MIN and keeps thousands of idle listeners viable
+		// on a 1 GB VPS while the built-in resolver avoids libc resolver calls.
+		fmt.Fprintf(&out, "socks -S-32768 -6 -n -a -p%d -i%s -e%s\n", p.Port, p.Host, p.IPv6)
 		out.WriteString("flush\n")
 	}
 	return out.Bytes(), nil
