@@ -55,7 +55,7 @@ func TestRenderConfigAndListParsing(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(config)
-	if !strings.Contains(text, "socks -S65536 -6 -n -a -p10000 -i203.0.113.9 -e2001:db8::1") || strings.Contains(text, "-p10001") {
+	if !strings.Contains(text, "socks -S-32768 -6 -n -a -p10000 -i203.0.113.9 -e2001:db8::1") || strings.Contains(text, "-p10001") {
 		t.Fatalf("unexpected config:\n%s", text)
 	}
 	entries, err := ParseList(string(FormatList(proxies, false)))
@@ -91,7 +91,7 @@ func TestRenderConfigKeepsLargeCredentialSetsOnSafeLines(t *testing.T) {
 }
 
 func TestParseExisting3ProxyServices(t *testing.T) {
-	services := Parse3ProxyServices([]byte("allow user\nsocks -S65536 -6 -n -a -p10000 -i203.0.113.9 -e2001:db8::1\nflush\n"))
+	services := Parse3ProxyServices([]byte("allow user\nsocks -S-32768 -6 -n -a -p10000 -i203.0.113.9 -e2001:db8::1\nflush\n"))
 	if got := services[10000]; got.Host != "203.0.113.9" || got.IPv6 != "2001:db8::1" {
 		t.Fatalf("unexpected imported service: %+v", got)
 	}
