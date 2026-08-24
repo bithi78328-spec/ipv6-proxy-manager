@@ -156,8 +156,11 @@ chmod 0644 /etc/systemd/system/ipv6-proxy-manager.service
 
 systemctl daemon-reload
 systemctl enable ipv6-proxy-engine.service ipv6-proxy-manager.service
+# Keep the dashboard stopped while the installer changes the engine and its
+# durable state. It is started after the final repair, at which point it safely
+# launches a fresh health scan.
+systemctl stop ipv6-proxy-manager.service 2>/dev/null || true
 systemctl restart ipv6-proxy-engine.service
-systemctl restart ipv6-proxy-manager.service
 
 PUBLIC_IPV4=$(python3 -c 'import json; print(json.load(open("/var/lib/ipv6-proxy-manager/state.json"))["public_ipv4"])')
 
@@ -275,6 +278,7 @@ fi
 step "Running final repair and rotating the dashboard URL"
 "${APP}" repair
 "${APP}" rotate-token >/dev/null
+systemctl restart ipv6-proxy-manager.service
 DASHBOARD_URL=$("${APP}" show-url)
 
 echo
@@ -287,3 +291,4 @@ echo " This URL opens directly; there is no login form."
 echo " Running this installer again repairs the same VPS and"
 echo " generates a new URL without deleting saved proxies."
 echo "============================================================"
+
