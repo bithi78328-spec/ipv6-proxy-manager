@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 REPOSITORY="${IP6PM_REPOSITORY:-__REPOSITORY__}"
+SOURCE_PLACEHOLDER="__REPO""SITORY__"
 RELEASE_BASE="${IP6PM_RELEASE_BASE:-https://github.com/${REPOSITORY}/releases/latest/download}"
 APP=/usr/local/bin/proxy-manager
 STATE_DIR=/var/lib/ipv6-proxy-manager
@@ -13,7 +14,7 @@ if [[ ${EUID} -ne 0 ]]; then
   echo "Run this installer as root: curl ... | sudo bash" >&2
   exit 1
 fi
-if [[ ${REPOSITORY} == "__REPOSITORY__" ]]; then
+if [[ ${REPOSITORY} == "${SOURCE_PLACEHOLDER}" ]]; then
   echo "This source installer has not been packaged by GitHub Releases yet." >&2
   echo "Set IP6PM_REPOSITORY=OWNER/REPO or download install.sh from a release." >&2
   exit 1
@@ -264,3 +265,4 @@ echo " This URL opens directly; there is no login form."
 echo " Running this installer again repairs the same VPS and"
 echo " generates a new URL without deleting saved proxies."
 echo "============================================================"
+
