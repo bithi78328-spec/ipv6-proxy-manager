@@ -51,7 +51,7 @@ func TestLargeRenderedConfigStartsOfficial3proxy(t *testing.T) {
 	if binary == "" {
 		t.Skip("official 3proxy binary is not available in this environment")
 	}
-	proxies := make([]model.Proxy, 5000)
+	proxies := make([]model.Proxy, 10000)
 	for i := range proxies {
 		proxies[i] = model.Proxy{
 			Host: "127.0.0.1", Port: 10000 + i, IPv6: fmt.Sprintf("2001:db8::%x", i+1),
@@ -66,7 +66,7 @@ func TestLargeRenderedConfigStartsOfficial3proxy(t *testing.T) {
 	if err := os.WriteFile(path, config, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binary, path)
 	out, err := cmd.CombinedOutput()
@@ -74,9 +74,9 @@ func TestLargeRenderedConfigStartsOfficial3proxy(t *testing.T) {
 		return
 	}
 	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("3proxy rejected 5000-proxy config: %v\n%s", err, out)
+		t.Fatalf("3proxy rejected 10000-proxy config: %v\n%s", err, out)
 	}
 	if err == nil {
-		t.Fatal("3proxy exited immediately instead of serving 5000 listeners")
+		t.Fatal("3proxy exited immediately instead of serving 10000 listeners")
 	}
 }
