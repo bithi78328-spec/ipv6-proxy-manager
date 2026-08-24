@@ -414,6 +414,22 @@ func (s *Service) CheckAll(ctx context.Context, concurrency int) error {
 	for check := range results {
 		checks[state.Proxies[check.index].Port] = check
 	}
+	// A large parallel pass can briefly saturate a very small VPS or a public
+	// egress-check endpoint. Once that burst is over, retry a small failure tail
+	// quietly so transient timeouts do not become misleading dashboard failures.
+	var retryIndexes []int
+	for _, check := range checks {
+		if check.err != nil {
+			retryIndexes = append(retryIndexes, check.index)
+		}
+	}
+	if len(retryIndexes) > 0 && len(retryIndexes) <= 100 {
+		sort.Ints(retryIndexes)
+		for _, index := range retryIndexes {
+			check := result{index: index, err: s.Checker.Check(ctx, state.Proxies[index])}
+			checks[state.Proxies[index].Port] = check
+		}
+	}
 	s.mu.Lock()
 	updated, err := s.Store.Update(func(latest *model.State) error {
 		for i := range latest.Proxies {
