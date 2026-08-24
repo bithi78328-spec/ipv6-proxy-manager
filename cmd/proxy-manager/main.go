@@ -133,7 +133,10 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "Usage: proxy-manager [flags] bootstrap|rotate-token|show-url|prepare|engine|repair|check|serve|version")
 }
 
-const engineWorkerSize = 5000
+const (
+	engineWorkerSize  = 2500
+	engineStageDelay = 5 * time.Second
+)
 
 func runEngine(service *app.Service, configPath string) error {
 	state, err := service.State()
@@ -186,7 +189,7 @@ func runEngine(service *app.Service, configPath string) error {
 			select {
 			case result := <-exits:
 				return fmt.Errorf("3proxy worker %d exited during staged startup: %w", result.worker, result.err)
-			case <-time.After(8 * time.Second):
+			case <-time.After(engineStageDelay):
 			}
 		}
 	}

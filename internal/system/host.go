@@ -29,10 +29,10 @@ type Host struct {
 }
 
 func NewHost(r Runner, engineService string) *Host {
-	// Large installations start 3proxy workers in stages. Twenty seconds covers
-	// the second worker's startup window and catches a late OOM/restart before
+	// Large installations start 3proxy workers in stages. Thirty seconds covers
+	// the final worker's startup window and catches a late OOM/restart before
 	// the dashboard begins its health scan.
-	return &Host{Runner: r, EngineService: engineService, EngineStabilityDelay: 20 * time.Second}
+	return &Host{Runner: r, EngineService: engineService, EngineStabilityDelay: 30 * time.Second}
 }
 
 type route struct {
