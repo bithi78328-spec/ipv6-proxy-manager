@@ -29,7 +29,7 @@ type Host struct {
 }
 
 func NewHost(r Runner, engineService string) *Host {
-	return &Host{Runner: r, EngineService: engineService, EngineStabilityDelay: 1500 * time.Millisecond}
+	return &Host{Runner: r, EngineService: engineService, EngineStabilityDelay: 10 * time.Second}
 }
 
 type route struct {
@@ -206,6 +206,14 @@ func (h *Host) EngineActive(ctx context.Context) error {
 	if _, err := h.Runner.Run(ctx, "systemctl", "is-active", "--quiet", h.EngineService); err != nil {
 		return err
 	}
+	firstPID, err := h.Runner.Run(ctx, "systemctl", "show", "--property=MainPID", "--value", h.EngineService)
+	if err != nil {
+		return err
+	}
+	first := strings.TrimSpace(string(firstPID))
+	if first == "" || first == "0" {
+		return fmt.Errorf("proxy engine has no running main process")
+	}
 	if h.EngineStabilityDelay <= 0 {
 		return nil
 	}
@@ -216,6 +224,17 @@ func (h *Host) EngineActive(ctx context.Context) error {
 		return ctx.Err()
 	case <-timer.C:
 	}
-	_, err := h.Runner.Run(ctx, "systemctl", "is-active", "--quiet", h.EngineService)
-	return err
+	if _, err := h.Runner.Run(ctx, "systemctl", "is-active", "--quiet", h.EngineService); err != nil {
+		return err
+	}
+	lastPID, err := h.Runner.Run(ctx, "systemctl", "show", "--property=MainPID", "--value", h.EngineService)
+	if err != nil {
+		return err
+	}
+	last := strings.TrimSpace(string(lastPID))
+	if last == "" || last == "0" || last != first {
+		return fmt.Errorf("proxy engine restarted during the stability check (PID %s became %s)", first, last)
+	}
+	return nil
 }
+
