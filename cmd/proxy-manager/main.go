@@ -81,6 +81,10 @@ func main() {
 		fatalIf(err)
 		printJSON(summary)
 	case "serve":
+		// A dashboard restart may interrupt an in-flight scan and leave durable
+		// statuses at checking. Rechecking on service start also verifies that
+		// proxies restored after a VPS reboot are genuinely usable again.
+		service.StartCheck()
 		server := &http.Server{
 			Addr:              *listen,
 			Handler:           &app.HTTPServer{Service: service},
@@ -123,3 +127,4 @@ func envOr(name, fallback string) string {
 func usage() {
 	fmt.Fprintln(os.Stderr, "Usage: proxy-manager [flags] bootstrap|rotate-token|show-url|prepare|repair|check|serve|version")
 }
+
