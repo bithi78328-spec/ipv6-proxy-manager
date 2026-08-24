@@ -107,7 +107,7 @@ step "Detecting IPv4, routed IPv6, and existing proxies"
 "${APP}" bootstrap
 
 step "Installing reboot restore and dashboard services"
-install -m 0644 /dev/stdin /etc/systemd/system/ipv6-proxy-engine.service <<'UNIT'
+cat > /etc/systemd/system/ipv6-proxy-engine.service <<'UNIT'
 [Unit]
 Description=IPv6 SOCKS5 Proxy Engine
 Wants=network-online.target
@@ -124,8 +124,9 @@ LimitNOFILE=1048576
 [Install]
 WantedBy=multi-user.target
 UNIT
+chmod 0644 /etc/systemd/system/ipv6-proxy-engine.service
 
-install -m 0644 /dev/stdin /etc/systemd/system/ipv6-proxy-manager.service <<'UNIT'
+cat > /etc/systemd/system/ipv6-proxy-manager.service <<'UNIT'
 [Unit]
 Description=IPv6 Proxy Manager Dashboard
 Wants=network-online.target
@@ -142,6 +143,7 @@ PrivateTmp=true
 [Install]
 WantedBy=multi-user.target
 UNIT
+chmod 0644 /etc/systemd/system/ipv6-proxy-manager.service
 
 systemctl daemon-reload
 systemctl enable ipv6-proxy-engine.service ipv6-proxy-manager.service
@@ -228,7 +230,7 @@ NGINX
 nginx -t
 systemctl reload nginx
 
-install -m 0644 /dev/stdin /etc/systemd/system/ipv6-proxy-manager-cert-renew.service <<'UNIT'
+cat > /etc/systemd/system/ipv6-proxy-manager-cert-renew.service <<'UNIT'
 [Unit]
 Description=Renew IPv6 Proxy Manager IP certificate
 After=network-online.target nginx.service
@@ -237,8 +239,9 @@ After=network-online.target nginx.service
 Type=oneshot
 ExecStart=/opt/ipv6-proxy-manager-certbot/bin/certbot renew --quiet --deploy-hook "systemctl reload nginx"
 UNIT
+chmod 0644 /etc/systemd/system/ipv6-proxy-manager-cert-renew.service
 
-install -m 0644 /dev/stdin /etc/systemd/system/ipv6-proxy-manager-cert-renew.timer <<'UNIT'
+cat > /etc/systemd/system/ipv6-proxy-manager-cert-renew.timer <<'UNIT'
 [Unit]
 Description=Renew IPv6 Proxy Manager IP certificate twice daily
 
@@ -251,6 +254,7 @@ Persistent=true
 [Install]
 WantedBy=timers.target
 UNIT
+chmod 0644 /etc/systemd/system/ipv6-proxy-manager-cert-renew.timer
 
 systemctl daemon-reload
 systemctl enable --now ipv6-proxy-manager-cert-renew.timer
