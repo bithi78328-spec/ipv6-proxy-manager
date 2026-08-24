@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -81,3 +83,25 @@ func TestCheckerValidatesAuthenticationAndEgress(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestLoopbackHealthEndpointReflectsIPv6Source(t *testing.T) {
+	checker, closeServer, err := NewLoopbackChecker()
+	if err != nil {
+		t.Skipf("IPv6 loopback is unavailable: %v", err)
+	}
+	defer closeServer()
+	url := fmt.Sprintf("http://[::1]:%d/", checker.EndpointPort)
+	response, err := http.Get(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(string(body)) != "::1" {
+		t.Fatalf("unexpected reflected address %q", body)
+	}
+}
+
