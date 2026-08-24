@@ -34,6 +34,20 @@ func TestAllocateRejectsInsufficientPrefix(t *testing.T) {
 	}
 }
 
+func TestAllocateAcceptsTenThousandAndRejectsMore(t *testing.T) {
+	state := model.NewState()
+	state.PublicIPv4 = "203.0.113.9"
+	state.IPv6Prefix = "2001:db8:1234::/64"
+	created, err := Allocate(&state, CreateOptions{Count: 10000, CredentialMode: "custom", Username: "user1", Password: "pass1"})
+	if err != nil || len(created) != 10000 {
+		t.Fatalf("expected 10000 proxies, got %d: %v", len(created), err)
+	}
+	_, err = Allocate(&state, CreateOptions{Count: 10001, CredentialMode: "custom", Username: "user1", Password: "pass1"})
+	if err == nil || !strings.Contains(err.Error(), "between 1 and 10000") {
+		t.Fatalf("expected count limit error, got %v", err)
+	}
+}
+
 func TestAddOffsetCarries(t *testing.T) {
 	base := netip.MustParseAddr("2001:db8::ffff")
 	got, err := AddOffset(base, 2)
@@ -65,7 +79,7 @@ func TestRenderConfigAndListParsing(t *testing.T) {
 }
 
 func TestRenderConfigKeepsLargeCredentialSetsOnSafeLines(t *testing.T) {
-	proxies := make([]model.Proxy, 5000)
+	proxies := make([]model.Proxy, 10000)
 	for i := range proxies {
 		proxies[i] = model.Proxy{
 			Host: "203.0.113.9", Port: 10000 + i, IPv6: fmt.Sprintf("2001:db8::%x", i+1),
