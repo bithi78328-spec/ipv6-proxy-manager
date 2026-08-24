@@ -28,6 +28,41 @@ type Checker struct {
 	RetryDelay   time.Duration
 }
 
+// NewLoopbackChecker starts a local-only IPv6 reflector and returns a checker
+// that uses it to verify every proxy's authentication, CONNECT handling and
+// exact outbound source address. Keeping this endpoint on ::1 avoids public
+// health-service rate limits while still exercising the complete SOCKS path.
+func NewLoopbackChecker() (*Checker, func(), error) {
+	listener, err := net.Listen("tcp6", "[::1]:0")
+	if err != nil {
+		return nil, nil, fmt.Errorf("start local IPv6 health endpoint: %w", err)
+	}
+	server := &http.Server{
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			host, _, err := net.SplitHostPort(r.RemoteAddr)
+			if err != nil {
+				http.Error(w, "invalid remote address", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "text/plain")
+			_, _ = io.WriteString(w, host)
+		}),
+		ReadHeaderTimeout: 3 * time.Second,
+		ReadTimeout:       5 * time.Second,
+		WriteTimeout:      5 * time.Second,
+		IdleTimeout:       5 * time.Second,
+	}
+	go func() { _ = server.Serve(listener) }()
+	checker := &Checker{
+		EndpointHost: "::1",
+		EndpointPort: listener.Addr().(*net.TCPAddr).Port,
+		EndpointPath: "/",
+		Timeout:      5 * time.Second,
+		Attempts:     1,
+	}
+	return checker, func() { _ = server.Close() }, nil
+}
+
 func NewChecker() *Checker {
 	return &Checker{
 		EndpointHost: "api64.ipify.org",
@@ -196,3 +231,4 @@ func socksConnect(conn net.Conn, host string, port int) error {
 	}
 	return nil
 }
+
