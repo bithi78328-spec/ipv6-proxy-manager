@@ -8,13 +8,13 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"ipv6-proxy-manager/internal/app"
-	"ipv6-proxy-manager/internal/model"
+	"ipv6-proxy-manager/internal/engine"
 	proxycore "ipv6-proxy-manager/internal/proxy"
 	"ipv6-proxy-manager/internal/store"
 	hostsystem "ipv6-proxy-manager/internal/system"
@@ -75,7 +75,11 @@ func main() {
 		fatalIf(err)
 		printJSON(report)
 	case "engine":
-		fatalIf(runEngine(service, *configPath))
+		state, err := service.State()
+		fatalIf(err)
+		engineCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		fatalIf(engine.Run(engineCtx, state.Proxies))
 	case "repair":
 		report, err := service.Repair(ctx)
 		fatalIf(err)
@@ -131,73 +135,4 @@ func envOr(name, fallback string) string {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, "Usage: proxy-manager [flags] bootstrap|rotate-token|show-url|prepare|engine|repair|check|serve|version")
-}
-
-const (
-	engineWorkerSize  = 2500
-	engineStageDelay = 5 * time.Second
-)
-
-func runEngine(service *app.Service, configPath string) error {
-	state, err := service.State()
-	if err != nil {
-		return err
-	}
-	var enabled []model.Proxy
-	for _, p := range state.Proxies {
-		if p.Enabled {
-			enabled = append(enabled, p)
-		}
-	}
-	var chunks [][]model.Proxy
-	for start := 0; start < len(enabled); start += engineWorkerSize {
-		end := start + engineWorkerSize
-		if end > len(enabled) {
-			end = len(enabled)
-		}
-		chunks = append(chunks, enabled[start:end])
-	}
-	if len(chunks) == 0 {
-		chunks = [][]model.Proxy{nil}
-	}
-
-	type exitResult struct {
-		worker int
-		err    error
-	}
-	exits := make(chan exitResult, len(chunks))
-	commands := make([]*exec.Cmd, 0, len(chunks))
-	for i, chunk := range chunks {
-		config, err := proxycore.RenderEngineConfig(chunk, len(enabled) == 0)
-		if err != nil {
-			return err
-		}
-		workerConfig := fmt.Sprintf("%s.worker-%d", configPath, i+1)
-		if err := store.WriteAtomic(workerConfig, config, 0o600); err != nil {
-			return fmt.Errorf("write engine worker config: %w", err)
-		}
-		cmd := exec.Command("/bin/3proxy", filepath.Clean(workerConfig))
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Start(); err != nil {
-			return fmt.Errorf("start 3proxy worker %d: %w", i+1, err)
-		}
-		commands = append(commands, cmd)
-		worker := i + 1
-		go func() { exits <- exitResult{worker: worker, err: cmd.Wait()} }()
-		if i < len(chunks)-1 {
-			select {
-			case result := <-exits:
-				return fmt.Errorf("3proxy worker %d exited during staged startup: %w", result.worker, result.err)
-			case <-time.After(engineStageDelay):
-			}
-		}
-	}
-	result := <-exits
-	for _, cmd := range commands {
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
-		}
-	}
-	return fmt.Errorf("3proxy worker %d exited: %w", result.worker, result.err)
 }

@@ -20,6 +20,8 @@ jobs:
           cache: false
       - name: Test
         run: go test -race ./...
+      - name: Test built-in engine with 10,000 listeners
+        run: IP6PM_TEST_10000=1 go test ./internal/engine -run TestTenThousandIdleListeners -count=1
       - name: Shell validation
         run: shellcheck -x install.sh
       - name: Validate generated config with official 3proxy
