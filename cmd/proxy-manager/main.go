@@ -99,9 +99,19 @@ func main() {
 		printJSON(summary)
 	case "serve":
 		// A dashboard restart may interrupt an in-flight scan and leave durable
-		// statuses at checking. Rechecking on service start also verifies that
-		// proxies restored after a VPS reboot are genuinely usable again.
-		service.StartCheck()
+		// statuses at checking. After a VPS reboot, systemd considers the engine
+		// started before all thousands of listeners have finished opening. Wait
+		// for a stable engine PID before scanning so that boot timing cannot turn
+		// healthy proxies into false failures.
+		startupCtx, stopStartupCheck := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer stopStartupCheck()
+		go func() {
+			if err := service.Host.EngineActive(startupCtx); err != nil {
+				log.Printf("startup health check skipped: proxy engine was not ready: %v", err)
+				return
+			}
+			service.StartCheck()
+		}()
 		server := &http.Server{
 			Addr:              *listen,
 			Handler:           &app.HTTPServer{Service: service},
