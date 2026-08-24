@@ -85,7 +85,7 @@ func TestTenThousandIdleListeners(t *testing.T) {
 	proxies := make([]model.Proxy, 10000)
 	for i := range proxies {
 		proxies[i] = model.Proxy{
-			Host: "127.0.0.1", Port: 30000 + i, IPv6: "::1", Username: "user1", Password: "pass1", Enabled: true,
+			Host: "127.0.0.1", Port: 10000 + i, IPv6: "::1", Username: "user1", Password: "pass1", Enabled: true,
 		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -93,7 +93,12 @@ func TestTenThousandIdleListeners(t *testing.T) {
 	go func() { errCh <- engine.Run(ctx, proxies) }()
 	deadline := time.Now().Add(30 * time.Second)
 	for {
-		conn, err := net.DialTimeout("tcp4", "127.0.0.1:39999", 100*time.Millisecond)
+		select {
+		case err := <-errCh:
+			t.Fatalf("10,000-listener engine exited during startup: %v", err)
+		default:
+		}
+		conn, err := net.DialTimeout("tcp4", "127.0.0.1:19999", 100*time.Millisecond)
 		if err == nil {
 			conn.Close()
 			break
