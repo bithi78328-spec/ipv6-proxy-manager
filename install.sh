@@ -58,6 +58,15 @@ case "$(dpkg --print-architecture)" in
   *) echo "Unsupported CPU architecture. Only amd64 and arm64 are supported."; exit 2 ;;
 esac
 
+if command -v cloud-init >/dev/null 2>&1; then
+  step "Waiting for first-boot cloud initialization"
+  timeout 600 cloud-init status --wait || {
+    echo "cloud-init did not finish successfully within 10 minutes."
+    echo "Check it with: cloud-init status --long"
+    exit 2
+  }
+fi
+
 export DEBIAN_FRONTEND=noninteractive
 step "Installing base packages"
 retry apt-get -o Acquire::Retries=3 update
@@ -265,3 +274,4 @@ echo " This URL opens directly; there is no login form."
 echo " Running this installer again repairs the same VPS and"
 echo " generates a new URL without deleting saved proxies."
 echo "============================================================"
+
