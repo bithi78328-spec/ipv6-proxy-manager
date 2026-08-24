@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>IPv6 Proxy Manager</title>
+  <link rel="stylesheet" href="__BASE__/assets/style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="eyebrow">VPS CONTROL PANEL</p>
+        <h1>IPv6 Proxy Manager</h1>
+        <p id="environment" class="muted">লোড হচ্ছে…</p>
+      </div>
+      <button id="refresh" class="secondary">রিফ্রেশ</button>
+    </header>
+
+    <section class="cards">
+      <article><span>মোট Proxy</span><strong id="total">—</strong></article>
+      <article class="good"><span>Live</span><strong id="live">—</strong></article>
+      <article class="off"><span>Disabled</span><strong id="disabled">—</strong></article>
+      <article class="bad"><span>Failed</span><strong id="failed">—</strong></article>
+      <article class="checking"><span>Checking</span><strong id="checking">—</strong></article>
+    </section>
+
+    <section class="actions">
+      <button id="check">সব Proxy Check করুন</button>
+      <button id="repair" class="warning">One-click Repair All</button>
+    </section>
+
+    <section class="panel">
+      <h2>নতুন Proxy তৈরি / আরও Proxy যোগ</h2>
+      <div class="form-grid">
+        <label>কতটি Proxy
+          <input id="count" type="number" min="1" max="5000" value="500">
+        </label>
+        <label>Credential
+          <select id="credential-mode">
+            <option value="random">Random username/password</option>
+            <option value="custom">Custom username/password</option>
+          </select>
+        </label>
+        <label class="custom-field hidden">Username
+          <input id="username" autocomplete="off">
+        </label>
+        <label class="custom-field hidden">Password
+          <input id="password" autocomplete="off">
+        </label>
+      </div>
+      <button id="create">Proxy তৈরি করুন</button>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <div>
+          <h2>Full Proxy Text List</h2>
+          <p class="muted">HOST:PORT:USERNAME:PASSWORD</p>
+        </div>
+        <div class="inline-actions">
+          <select id="list-filter">
+            <option value="all">সব Proxy</option>
+            <option value="live">শুধু Live</option>
+            <option value="disabled">শুধু Disabled</option>
+            <option value="failed">শুধু Failed</option>
+          </select>
+          <button id="load-list" class="secondary">List দেখুন</button>
+          <button id="copy-list" class="secondary">Copy</button>
+          <button id="download-list" class="secondary">TXT Download</button>
+        </div>
+      </div>
+      <textarea id="proxy-list" rows="12" readonly placeholder="List দেখুন চাপলে এখানে proxy list আসবে"></textarea>
+    </section>
+
+    <section class="panel">
+      <h2>Proxy বন্ধ, চালু অথবা Delete</h2>
+      <p class="muted">Full proxy lineগুলো নিচে paste করুন।</p>
+      <textarea id="action-list" rows="7" placeholder="65.20.83.206:10000:user:password"></textarea>
+      <div class="inline-actions">
+        <select id="action">
+          <option value="disable">Disable</option>
+          <option value="enable">Enable</option>
+          <option value="delete">Permanently Delete</option>
+        </select>
+        <button id="apply-action">Apply</button>
+      </div>
+    </section>
+
+    <section class="panel output-panel">
+      <h2>কাজের ফলাফল</h2>
+      <pre id="output">Ready.</pre>
+    </section>
+  </main>
+  <script>window.IP6PM_BASE = "__BASE__";</script>
+  <script src="__BASE__/assets/app.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,65 @@
+name: release
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test-build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Test
+        run: go test -race ./...
+      - name: Shell validation
+        run: shellcheck -x install.sh
+      - name: Validate generated config with official 3proxy
+        run: |
+          curl -fL --retry 3 -o /tmp/3proxy.deb https://github.com/3proxy/3proxy/releases/download/0.9.5/3proxy-0.9.5.x86_64.deb
+          echo "5c8c2119c19cb26c7fb3c81a79f8a278f19d39a24189ad5c719479b3414f734a  /tmp/3proxy.deb" | sha256sum -c -
+          sudo dpkg -i /tmp/3proxy.deb
+          sudo systemctl stop 3proxy.service || true
+          IP6PM_3PROXY_BINARY=/bin/3proxy go test ./internal/proxy -run TestRenderedConfigStartsOfficial3proxy -count=1
+      - name: Select release version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            echo "value=${GITHUB_REF_NAME}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "value=v0.1.${GITHUB_RUN_NUMBER}" >> "${GITHUB_OUTPUT}"
+          fi
+      - name: Build Linux binaries
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          mkdir -p dist
+          VERSION="${{ steps.version.outputs.value }}"
+          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o dist/proxy-manager-linux-amd64 ./cmd/proxy-manager
+          GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o dist/proxy-manager-linux-arm64 ./cmd/proxy-manager
+          cd dist
+          sha256sum proxy-manager-linux-amd64 > proxy-manager-linux-amd64.sha256
+          sha256sum proxy-manager-linux-arm64 > proxy-manager-linux-arm64.sha256
+      - name: Package repository-aware installer
+        run: sed "s|__REPOSITORY__|${GITHUB_REPOSITORY}|g" install.sh > dist/install.sh
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipv6-proxy-manager
+          path: dist/*
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          tag_name: ${{ steps.version.outputs.value }}
+          name: IPv6 Proxy Manager ${{ steps.version.outputs.value }}
