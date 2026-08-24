@@ -19,6 +19,7 @@ type fakeRunner struct {
 	mu          sync.Mutex
 	calls       []string
 	failRestart bool
+	restartHook func() error
 }
 
 func (f *fakeRunner) Run(_ context.Context, name string, args ...string) ([]byte, error) {
@@ -32,6 +33,11 @@ func (f *fakeRunner) Run(_ context.Context, name string, args ...string) ([]byte
 	if strings.Contains(call, "systemctl restart") && f.failRestart {
 		f.failRestart = false
 		return nil, fmt.Errorf("simulated restart failure")
+	}
+	if strings.Contains(call, "systemctl restart") && f.restartHook != nil {
+		if err := f.restartHook(); err != nil {
+			return nil, err
+		}
 	}
 	return []byte("active"), nil
 }
@@ -165,6 +171,30 @@ func TestRepeatedCreateBatchDeleteAndListLifecycle(t *testing.T) {
 	}
 }
 
+func TestCandidateStateIsSavedBeforeSystemdExecStartPre(t *testing.T) {
+	service, runner := testService(t)
+	created, _, err := service.Create(context.Background(), proxycore.CreateOptions{
+		Count: 1, CredentialMode: "custom", Username: "user1", Password: "pass1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner.restartHook = func() error {
+		state, err := service.Store.Load()
+		if err != nil {
+			return err
+		}
+		if len(state.Proxies) != 1 || state.Proxies[0].Enabled {
+			return fmt.Errorf("ExecStartPre observed stale enabled state")
+		}
+		return nil
+	}
+	line := fmt.Sprintf("%s:%d:%s:%s", created[0].Host, created[0].Port, created[0].Username, created[0].Password)
+	if _, _, err := service.ApplyListAction(context.Background(), "disable", line); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestFailedRestartRollsBackConfigAndState(t *testing.T) {
 	service, runner := testService(t)
 	created, _, err := service.Create(context.Background(), proxycore.CreateOptions{
@@ -227,3 +257,4 @@ func TestBootstrapImportsExistingManualSetup(t *testing.T) {
 		t.Fatalf("manual import failed: %+v, steps=%v", state.Proxies, steps)
 	}
 }
+
