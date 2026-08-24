@@ -105,6 +105,66 @@ func TestCreateCheckDisableEnableDelete(t *testing.T) {
 	}
 }
 
+func TestRepeatedCreateBatchDeleteAndListLifecycle(t *testing.T) {
+	service, _ := testService(t)
+	first, _, err := service.Create(context.Background(), proxycore.CreateOptions{
+		Count: 3, CredentialMode: "random",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, _, err := service.Create(context.Background(), proxycore.CreateOptions{
+		Count: 2, CredentialMode: "custom", Username: "shared_user", Password: "shared_pass",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	all := append(first, second...)
+	if len(all) != 5 || all[0].Port != 10000 || all[4].Port != 10004 {
+		t.Fatalf("repeated create did not continue ports: %+v", all)
+	}
+	if err := service.CheckAll(context.Background(), 2); err != nil {
+		t.Fatal(err)
+	}
+	full, err := os.ReadFile(service.Paths.FullList)
+	if err != nil {
+		t.Fatal(err)
+	}
+	live, err := os.ReadFile(service.Paths.LiveList)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entries, err := proxycore.ParseList(string(full)); err != nil || len(entries) != 5 {
+		t.Fatalf("unexpected full list: entries=%d err=%v", len(entries), err)
+	}
+	if entries, err := proxycore.ParseList(string(live)); err != nil || len(entries) != 5 {
+		t.Fatalf("unexpected live list: entries=%d err=%v", len(entries), err)
+	}
+	line := func(p model.Proxy) string {
+		return fmt.Sprintf("%s:%d:%s:%s", p.Host, p.Port, p.Username, p.Password)
+	}
+	selection := line(all[1]) + "\n" + line(all[3])
+	result, _, err := service.ApplyListAction(context.Background(), "disable", selection)
+	if err != nil || result.Matched != 2 {
+		t.Fatalf("batch disable failed: %+v %v", result, err)
+	}
+	live, _ = os.ReadFile(service.Paths.LiveList)
+	if entries, err := proxycore.ParseList(string(live)); err != nil || len(entries) != 3 {
+		t.Fatalf("disabled proxies remained in live list: entries=%d err=%v", len(entries), err)
+	}
+	result, _, err = service.ApplyListAction(context.Background(), "delete", selection)
+	if err != nil || result.Matched != 2 {
+		t.Fatalf("batch delete failed: %+v %v", result, err)
+	}
+	full, _ = os.ReadFile(service.Paths.FullList)
+	if entries, err := proxycore.ParseList(string(full)); err != nil || len(entries) != 3 {
+		t.Fatalf("deleted proxies remained in full list: entries=%d err=%v", len(entries), err)
+	}
+	if report, err := service.Repair(context.Background()); err != nil || !report.Success {
+		t.Fatalf("repair after lifecycle failed: %+v %v", report, err)
+	}
+}
+
 func TestFailedRestartRollsBackConfigAndState(t *testing.T) {
 	service, runner := testService(t)
 	created, _, err := service.Create(context.Background(), proxycore.CreateOptions{
