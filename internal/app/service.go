@@ -41,6 +41,9 @@ type Service struct {
 
 	mu       sync.Mutex
 	checking atomic.Bool
+	checkMu  sync.Mutex
+	checkID  atomic.Uint64
+	cancel   context.CancelFunc
 }
 
 type RepairReport struct {
@@ -125,6 +128,7 @@ func (s *Service) TokenValid(candidate string) bool {
 func (s *Service) State() (model.State, error) { return s.Store.Load() }
 
 func (s *Service) Create(ctx context.Context, options proxycore.CreateOptions) ([]model.Proxy, RepairReport, error) {
+	s.stopCheck()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	current, err := s.Store.Load()
@@ -144,6 +148,7 @@ func (s *Service) Create(ctx context.Context, options proxycore.CreateOptions) (
 }
 
 func (s *Service) ApplyListAction(ctx context.Context, action, text string) (ActionResult, RepairReport, error) {
+	s.stopCheck()
 	entries, err := proxycore.ParseList(text)
 	if err != nil {
 		return ActionResult{}, RepairReport{}, err
@@ -219,6 +224,7 @@ func (s *Service) ApplyListAction(ctx context.Context, action, text string) (Act
 }
 
 func (s *Service) Repair(ctx context.Context) (RepairReport, error) {
+	s.stopCheck()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	state, err := s.Store.Load()
@@ -375,14 +381,38 @@ func (s *Service) applyCandidate(ctx context.Context, original, candidate model.
 }
 
 func (s *Service) StartCheck() bool {
-	if !s.checking.CompareAndSwap(false, true) {
-		return false
+	s.checkMu.Lock()
+	if s.cancel != nil {
+		s.cancel()
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancel = cancel
+	id := s.checkID.Add(1)
+	s.checking.Store(true)
+	s.checkMu.Unlock()
 	go func() {
-		defer s.checking.Store(false)
-		_ = s.CheckAll(context.Background(), 20)
+		_ = s.CheckAll(ctx, 50)
+		s.checkMu.Lock()
+		if s.checkID.Load() == id {
+			s.checking.Store(false)
+			s.cancel = nil
+		}
+		s.checkMu.Unlock()
 	}()
 	return true
+}
+
+// stopCheck prevents results collected for an older configuration from being
+// written after a create, disable, enable, delete or repair operation.
+func (s *Service) stopCheck() {
+	s.checkMu.Lock()
+	s.checkID.Add(1)
+	if s.cancel != nil {
+		s.cancel()
+		s.cancel = nil
+	}
+	s.checking.Store(false)
+	s.checkMu.Unlock()
 }
 
 func (s *Service) CheckAll(ctx context.Context, concurrency int) error {
@@ -432,6 +462,9 @@ func (s *Service) CheckAll(ctx context.Context, concurrency int) error {
 	checks := make(map[int]result)
 	for check := range results {
 		checks[state.Proxies[check.index].Port] = check
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	// A large parallel pass can briefly saturate a very small VPS or a public
 	// egress-check endpoint. Once that burst is over, retry a small failure tail
@@ -601,3 +634,4 @@ func FilteredList(state model.State, filter string) []model.Proxy {
 func TextList(proxies []model.Proxy) string {
 	return strings.TrimSpace(string(proxycore.FormatList(proxies, false)))
 }
+
