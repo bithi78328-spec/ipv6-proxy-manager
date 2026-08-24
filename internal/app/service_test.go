@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"ipv6-proxy-manager/internal/model"
 	proxycore "ipv6-proxy-manager/internal/proxy"
@@ -48,6 +49,17 @@ func (f *fakeRunner) Run(_ context.Context, name string, args ...string) ([]byte
 type fakeChecker struct{ err error }
 
 func (f fakeChecker) Check(context.Context, model.Proxy) error { return f.err }
+
+type blockingChecker struct{ started chan struct{} }
+
+func (b blockingChecker) Check(ctx context.Context, _ model.Proxy) error {
+	select {
+	case b.started <- struct{}{}:
+	default:
+	}
+	<-ctx.Done()
+	return ctx.Err()
+}
 
 func testService(t *testing.T) (*Service, *fakeRunner) {
 	t.Helper()
@@ -111,6 +123,32 @@ func TestCreateCheckDisableEnableDelete(t *testing.T) {
 	state, _ := service.State()
 	if len(state.Proxies) != 1 {
 		t.Fatalf("expected one proxy after deletion, got %d", len(state.Proxies))
+	}
+}
+
+func TestMutationCancelsStaleHealthResults(t *testing.T) {
+	service, _ := testService(t)
+	created, _, err := service.Create(context.Background(), proxycore.CreateOptions{
+		Count: 1, CredentialMode: "custom", Username: "user1", Password: "pass1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := make(chan struct{}, 1)
+	service.Checker = blockingChecker{started: started}
+	service.StartCheck()
+	<-started
+	line := fmt.Sprintf("%s:%d:%s:%s", created[0].Host, created[0].Port, created[0].Username, created[0].Password)
+	if _, _, err := service.ApplyListAction(context.Background(), "disable", line); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(20 * time.Millisecond)
+	summary, err := service.Summary()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary.Disabled != 1 || summary.Live != 0 || summary.Failed != 0 || summary.Checking != 0 {
+		t.Fatalf("stale health result overwrote disabled state: %+v", summary)
 	}
 }
 
@@ -277,3 +315,4 @@ func TestBootstrapIgnoresAnEmptyExistingProxyList(t *testing.T) {
 		t.Fatalf("expected an empty state, got %d proxies", len(state.Proxies))
 	}
 }
+
