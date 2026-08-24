@@ -34,10 +34,19 @@ func main() {
 		usage()
 		os.Exit(2)
 	}
+	command := flag.Arg(0)
+	checker := proxycore.NewChecker()
+	if command == "serve" {
+		var closeChecker func()
+		var err error
+		checker, closeChecker, err = proxycore.NewLoopbackChecker()
+		fatalIf(err)
+		defer closeChecker()
+	}
 	service := &app.Service{
 		Store:   store.New(*statePath),
 		Host:    hostsystem.NewHost(hostsystem.ExecRunner{}, *engineService),
-		Checker: proxycore.NewChecker(),
+		Checker: checker,
 		Paths: app.Paths{
 			Config:     *configPath,
 			FullList:   *fullListPath,
@@ -53,7 +62,6 @@ func main() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
-	command := flag.Arg(0)
 	switch command {
 	case "bootstrap":
 		state, steps, err := service.Bootstrap(ctx)
@@ -136,3 +144,4 @@ func envOr(name, fallback string) string {
 func usage() {
 	fmt.Fprintln(os.Stderr, "Usage: proxy-manager [flags] bootstrap|rotate-token|show-url|prepare|engine|repair|check|serve|version")
 }
+
