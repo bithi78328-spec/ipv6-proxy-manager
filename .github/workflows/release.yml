@@ -28,7 +28,7 @@ jobs:
           echo "5c8c2119c19cb26c7fb3c81a79f8a278f19d39a24189ad5c719479b3414f734a  /tmp/3proxy.deb" | sha256sum -c -
           sudo dpkg -i /tmp/3proxy.deb
           sudo systemctl stop 3proxy.service || true
-          IP6PM_3PROXY_BINARY=/bin/3proxy go test ./internal/proxy -run TestRenderedConfigStartsOfficial3proxy -count=1
+          IP6PM_3PROXY_BINARY=/bin/3proxy go test ./internal/proxy -run 'Test.*RenderedConfigStartsOfficial3proxy' -count=1
       - name: Select release version
         id: version
         shell: bash

@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"fmt"
 	"net/netip"
 	"strings"
 	"testing"
@@ -60,6 +61,32 @@ func TestRenderConfigAndListParsing(t *testing.T) {
 	entries, err := ParseList(string(FormatList(proxies, false)))
 	if err != nil || len(entries) != 2 || entries[0].Port != 10000 {
 		t.Fatalf("unexpected list parse: %+v, %v", entries, err)
+	}
+}
+
+func TestRenderConfigKeepsLargeCredentialSetsOnSafeLines(t *testing.T) {
+	proxies := make([]model.Proxy, 5000)
+	for i := range proxies {
+		proxies[i] = model.Proxy{
+			Host: "203.0.113.9", Port: 10000 + i, IPv6: fmt.Sprintf("2001:db8::%x", i+1),
+			Username: fmt.Sprintf("user_%04d", i), Password: fmt.Sprintf("password_%04d", i), Enabled: true,
+		}
+	}
+	config, err := RenderConfig(proxies)
+	if err != nil {
+		t.Fatal(err)
+	}
+	users := 0
+	for _, line := range strings.Split(string(config), "\n") {
+		if len(line) > 1024 {
+			t.Fatalf("generated an unsafe %d-byte configuration line", len(line))
+		}
+		if strings.HasPrefix(line, "users ") {
+			users++
+		}
+	}
+	if users != len(proxies) {
+		t.Fatalf("expected %d users commands, got %d", len(proxies), users)
 	}
 }
 

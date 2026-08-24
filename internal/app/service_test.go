@@ -54,9 +54,11 @@ func testService(t *testing.T) (*Service, *fakeRunner) {
 		t.Fatal(err)
 	}
 	runner := &fakeRunner{}
+	host := hostsystem.NewHost(runner, "ipv6-proxy-engine.service")
+	host.EngineStabilityDelay = 0
 	service := &Service{
 		Store:   st,
-		Host:    hostsystem.NewHost(runner, "ipv6-proxy-engine.service"),
+		Host:    host,
 		Checker: fakeChecker{},
 		Paths: Paths{
 			Config:   filepath.Join(dir, "3proxy.cfg"),

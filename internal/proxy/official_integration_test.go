@@ -3,6 +3,7 @@ package proxy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -42,5 +43,40 @@ func TestRenderedConfigStartsOfficial3proxy(t *testing.T) {
 	}
 	if err == nil {
 		t.Fatal("3proxy exited immediately instead of serving the generated listeners")
+	}
+}
+
+func TestLargeRenderedConfigStartsOfficial3proxy(t *testing.T) {
+	binary := os.Getenv("IP6PM_3PROXY_BINARY")
+	if binary == "" {
+		t.Skip("official 3proxy binary is not available in this environment")
+	}
+	proxies := make([]model.Proxy, 5000)
+	for i := range proxies {
+		proxies[i] = model.Proxy{
+			Host: "127.0.0.1", Port: 10000 + i, IPv6: fmt.Sprintf("2001:db8::%x", i+1),
+			Username: fmt.Sprintf("user_%04d", i), Password: fmt.Sprintf("password_%04d", i), Enabled: true,
+		}
+	}
+	config, err := RenderConfig(proxies)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "3proxy-large.cfg")
+	if err := os.WriteFile(path, config, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, binary, path)
+	out, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return
+	}
+	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("3proxy rejected 5000-proxy config: %v\n%s", err, out)
+	}
+	if err == nil {
+		t.Fatal("3proxy exited immediately instead of serving 5000 listeners")
 	}
 }

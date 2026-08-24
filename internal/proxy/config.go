@@ -75,11 +75,13 @@ func RenderConfig(proxies []model.Proxy) ([]byte, error) {
 			usernames = append(usernames, username)
 		}
 		sort.Strings(usernames)
-		out.WriteString("users")
 		for _, username := range usernames {
-			fmt.Fprintf(&out, " %s:CL:%s", username, users[username])
+			// 3proxy has a finite configuration command-line buffer. A single
+			// users command containing thousands of credentials is truncated and
+			// the remainder is parsed as an unknown command. Multiple users
+			// commands are explicitly supported, so keep every line small.
+			fmt.Fprintf(&out, "users %s:CL:%s\n", username, users[username])
 		}
-		out.WriteByte('\n')
 	}
 	for _, p := range enabled {
 		fmt.Fprintf(&out, "allow %s\n", p.Username)

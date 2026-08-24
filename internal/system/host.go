@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"time"
 )
 
 type Detection struct {
@@ -22,12 +23,13 @@ type Detection struct {
 }
 
 type Host struct {
-	Runner        Runner
-	EngineService string
+	Runner               Runner
+	EngineService        string
+	EngineStabilityDelay time.Duration
 }
 
 func NewHost(r Runner, engineService string) *Host {
-	return &Host{Runner: r, EngineService: engineService}
+	return &Host{Runner: r, EngineService: engineService, EngineStabilityDelay: 1500 * time.Millisecond}
 }
 
 type route struct {
@@ -201,6 +203,19 @@ func (h *Host) RestartEngine(ctx context.Context) error {
 }
 
 func (h *Host) EngineActive(ctx context.Context) error {
+	if _, err := h.Runner.Run(ctx, "systemctl", "is-active", "--quiet", h.EngineService); err != nil {
+		return err
+	}
+	if h.EngineStabilityDelay <= 0 {
+		return nil
+	}
+	timer := time.NewTimer(h.EngineStabilityDelay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+	}
 	_, err := h.Runner.Run(ctx, "systemctl", "is-active", "--quiet", h.EngineService)
 	return err
 }
