@@ -78,6 +78,19 @@ func TestRenderConfigAndListParsing(t *testing.T) {
 	}
 }
 
+func TestWorkerConfigCanOmitKeepaliveListener(t *testing.T) {
+	config, err := RenderEngineConfig([]model.Proxy{{
+		Host: "203.0.113.9", Port: 10000, IPv6: "2001:db8::1", Username: "user1", Password: "pass1", Enabled: true,
+	}}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(config)
+	if strings.Contains(text, "-p65535") || !strings.Contains(text, "-p10000") {
+		t.Fatalf("unexpected worker config:\n%s", text)
+	}
+}
+
 func TestRenderConfigKeepsLargeCredentialSetsOnSafeLines(t *testing.T) {
 	proxies := make([]model.Proxy, 10000)
 	for i := range proxies {
