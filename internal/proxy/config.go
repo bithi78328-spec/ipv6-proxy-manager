@@ -23,6 +23,17 @@ func ValidateCredential(value, field string) error {
 }
 
 func RenderConfig(proxies []model.Proxy) ([]byte, error) {
+	return renderConfig(proxies, true)
+}
+
+// RenderEngineConfig renders one worker's configuration. Non-empty workers do
+// not need the loopback keepalive listener; omitting it lets multiple 3proxy
+// workers run side by side without all trying to bind port 65535.
+func RenderEngineConfig(proxies []model.Proxy, keepalive bool) ([]byte, error) {
+	return renderConfig(proxies, keepalive)
+}
+
+func renderConfig(proxies []model.Proxy, keepalive bool) ([]byte, error) {
 	var enabled []model.Proxy
 	users := make(map[string]string)
 	ports := make(map[int]struct{})
@@ -66,11 +77,13 @@ func RenderConfig(proxies []model.Proxy) ([]byte, error) {
 	out.WriteString("nserver 1.1.1.1\n")
 	out.WriteString("nserver 8.8.8.8\n")
 	out.WriteString("nscache 65536\n")
-	// Keep the engine alive before the first real proxy is created. Port 65535
-	// is loopback-only and reserved by the allocator.
-	out.WriteString("auth none\n")
-	out.WriteString("socks -p65535 -i127.0.0.1\n")
-	out.WriteString("flush\n")
+	if keepalive {
+		// Keep the engine alive before the first real proxy is created. Port 65535
+		// is loopback-only and reserved by the allocator.
+		out.WriteString("auth none\n")
+		out.WriteString("socks -p65535 -i127.0.0.1\n")
+		out.WriteString("flush\n")
+	}
 	out.WriteString("auth strong\n")
 	if len(users) > 0 {
 		usernames := make([]string, 0, len(users))
