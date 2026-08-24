@@ -123,7 +123,7 @@ After=network-online.target
 [Service]
 Type=simple
 ExecStartPre=/usr/local/bin/proxy-manager prepare
-ExecStart=/bin/3proxy /etc/ipv6-proxy-manager/3proxy.cfg
+ExecStart=/usr/local/bin/proxy-manager engine
 Restart=always
 RestartSec=3
 LimitNOFILE=1048576
