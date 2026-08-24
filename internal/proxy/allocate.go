@@ -18,8 +18,8 @@ type CreateOptions struct {
 }
 
 func Allocate(state *model.State, options CreateOptions) ([]model.Proxy, error) {
-	if options.Count < 1 || options.Count > 5000 {
-		return nil, fmt.Errorf("count must be between 1 and 5000")
+	if options.Count < 1 || options.Count > 10000 {
+		return nil, fmt.Errorf("count must be between 1 and 10000")
 	}
 	if options.CredentialMode != "random" && options.CredentialMode != "custom" {
 		return nil, fmt.Errorf("credential mode must be random or custom")
