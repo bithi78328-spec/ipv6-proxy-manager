@@ -107,6 +107,11 @@ step "Detecting IPv4, routed IPv6, and existing proxies"
 "${APP}" bootstrap
 
 step "Installing reboot restore and dashboard services"
+CURRENT_THREADS_MAX=$(sysctl -n kernel.threads-max)
+if (( CURRENT_THREADS_MAX < 20000 )); then
+  echo 'kernel.threads-max = 20000' > /etc/sysctl.d/90-ipv6-proxy-manager.conf
+  sysctl -w kernel.threads-max=20000
+fi
 cat > /etc/systemd/system/ipv6-proxy-engine.service <<'UNIT'
 [Unit]
 Description=IPv6 SOCKS5 Proxy Engine
@@ -120,6 +125,8 @@ ExecStart=/bin/3proxy /etc/ipv6-proxy-manager/3proxy.cfg
 Restart=always
 RestartSec=3
 LimitNOFILE=1048576
+LimitNPROC=20000
+TasksMax=20000
 
 [Install]
 WantedBy=multi-user.target

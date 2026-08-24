@@ -154,7 +154,7 @@ func TestBootstrapImportsExistingManualSetup(t *testing.T) {
 	if err := os.WriteFile(manualList, []byte("203.0.113.9:10000:user1:pass1\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(manualConfig, []byte("users user1:CL:pass1\nauth strong\nallow user1\nsocks -6 -n -a -p10000 -i203.0.113.9 -e2001:db8:1::1\nflush\n"), 0o600); err != nil {
+	if err := os.WriteFile(manualConfig, []byte("users user1:CL:pass1\nauth strong\nallow user1\nsocks -S65536 -6 -n -a -p10000 -i203.0.113.9 -e2001:db8:1::1\nflush\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	service.Paths.ImportList = manualList
