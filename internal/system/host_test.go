@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 type probeRunner struct{ fail bool }
@@ -58,3 +60,33 @@ func TestProbeRoutedPrefix(t *testing.T) {
 		t.Fatal("expected routed-prefix probe failure")
 	}
 }
+
+type changingPIDRunner struct {
+	mu    sync.Mutex
+	shows int
+}
+
+func (r *changingPIDRunner) Run(_ context.Context, name string, args ...string) ([]byte, error) {
+	call := name + " " + strings.Join(args, " ")
+	if strings.Contains(call, "systemctl show") {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		r.shows++
+		if r.shows == 1 {
+			return []byte("111\n"), nil
+		}
+		return []byte("222\n"), nil
+	}
+	return []byte("active\n"), nil
+}
+
+func TestEngineActiveRejectsAProcessThatRestartsDuringStabilityWindow(t *testing.T) {
+	runner := &changingPIDRunner{}
+	host := NewHost(runner, "engine.service")
+	host.EngineStabilityDelay = time.Millisecond
+	err := host.EngineActive(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "restarted during") {
+		t.Fatalf("expected unstable PID error, got %v", err)
+	}
+}
+
