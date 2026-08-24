@@ -24,6 +24,8 @@ type Checker struct {
 	FallbackPort int
 	FallbackPath string
 	Timeout      time.Duration
+	Attempts     int
+	RetryDelay   time.Duration
 }
 
 func NewChecker() *Checker {
@@ -35,10 +37,39 @@ func NewChecker() *Checker {
 		FallbackPort: 80,
 		FallbackPath: "/ip",
 		Timeout:      12 * time.Second,
+		Attempts:     3,
+		RetryDelay:   250 * time.Millisecond,
 	}
 }
 
 func (c *Checker) Check(ctx context.Context, p model.Proxy) error {
+	attempts := c.Attempts
+	if attempts < 1 {
+		attempts = 1
+	}
+	var lastErr error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		lastErr = c.checkOnce(ctx, p)
+		if lastErr == nil {
+			return nil
+		}
+		if attempt == attempts {
+			break
+		}
+		delay := c.RetryDelay
+		if delay <= 0 {
+			delay = 250 * time.Millisecond
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(delay):
+		}
+	}
+	return fmt.Errorf("health check failed after %d attempts: %w", attempts, lastErr)
+}
+
+func (c *Checker) checkOnce(ctx context.Context, p model.Proxy) error {
 	err := c.checkEndpoint(ctx, p, c.EndpointHost, c.EndpointPort, c.EndpointPath)
 	if err == nil || c.FallbackHost == "" {
 		return err
