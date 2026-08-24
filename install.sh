@@ -112,8 +112,15 @@ TARGET_THREADS_MAX=${CURRENT_THREADS_MAX}
 if (( TARGET_THREADS_MAX < 20000 )); then
   TARGET_THREADS_MAX=20000
 fi
-printf 'kernel.threads-max = %s\n' "${TARGET_THREADS_MAX}" > /etc/sysctl.d/90-ipv6-proxy-manager.conf
+CONNTRACK_MAX=$(sysctl -n net.netfilter.nf_conntrack_max 2>/dev/null || echo 0)
+TARGET_CONNTRACK_MAX=${CONNTRACK_MAX}
+if (( TARGET_CONNTRACK_MAX < 131072 )); then
+  TARGET_CONNTRACK_MAX=131072
+fi
+printf 'kernel.threads-max = %s\nnet.netfilter.nf_conntrack_max = %s\n' \
+  "${TARGET_THREADS_MAX}" "${TARGET_CONNTRACK_MAX}" > /etc/sysctl.d/90-ipv6-proxy-manager.conf
 sysctl -w kernel.threads-max="${TARGET_THREADS_MAX}"
+sysctl -w net.netfilter.nf_conntrack_max="${TARGET_CONNTRACK_MAX}"
 cat > /etc/systemd/system/ipv6-proxy-engine.service <<'UNIT'
 [Unit]
 Description=IPv6 SOCKS5 Proxy Engine
@@ -291,3 +298,4 @@ echo " This URL opens directly; there is no login form."
 echo " Running this installer again repairs the same VPS and"
 echo " generates a new URL without deleting saved proxies."
 echo "============================================================"
+
